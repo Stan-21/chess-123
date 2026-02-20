@@ -1,4 +1,6 @@
 #include "Chess.h"
+#include "ChessSquare.h"
+#include <cctype>
 #include <limits>
 #include <cmath>
 
@@ -12,7 +14,7 @@ Chess::~Chess()
     delete _grid;
 }
 
-char Chess::pieceNotation(int x, int y) const
+char Chess:: pieceNotation(int x, int y) const
 {
     const char *wpieces = { "0PNBRQK" };
     const char *bpieces = { "0pnbrqk" };
@@ -46,7 +48,8 @@ void Chess::setUpBoard()
     _gameOptions.rowY = 8;
 
     _grid->initializeChessSquares(pieceSize, "boardsquare.png");
-    FENtoBoard("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
+    //FENtoBoard("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
+    FENtoBoard("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
 
     startGame();
 }
@@ -61,6 +64,54 @@ void Chess::FENtoBoard(const std::string& fen) {
     // 3: castling availability (KQkq or -)
     // 4: en passant target square (in algebraic notation, or -)
     // 5: halfmove clock (number of halfmoves since the last capture or pawn advance)
+
+    _grid->forEachSquare([](ChessSquare* square, int x, int y) {
+        square->setBit(nullptr);
+    });
+
+    int row = 7; // row 7 is the top of the board 
+    int col = 0;
+
+    // Kinda did copy from the lecture, but I do understand how it works
+    for (char ch : fen) {
+        // Ignoring the last bit of extended fen string for now
+        if (ch == ' ') {
+            break;
+        }
+        if (ch == '/') {
+            row--;
+            col = 0;
+        } else if (std::isdigit(ch)) {
+            col += ch - '0';
+        } else {
+            ChessPiece piece = Pawn;
+            switch (std::toupper(ch)) {
+                case 'R':
+                    piece = Rook;
+                    break;
+                case 'N':
+                    piece = Knight;
+                    break;
+                case 'B':
+                    piece = Bishop;
+                    break;
+                case 'Q':
+                    piece = Queen;
+                    break;
+                case 'K':
+                    piece = King;
+                    break;
+            }
+            // If it is uppercase, make it a white piece
+            Bit* bit = PieceForPlayer(std::isupper(ch) ? 0 : 1, piece);
+            ChessSquare* square = _grid->getSquare(col, row);
+            bit->setPosition(square->getPosition());
+            bit->setParent(square);
+            bit->setGameTag(std::isupper(ch) ? piece : (piece + 128));
+            square->setBit(bit);
+            col++;
+        }
+    }
 }
 
 bool Chess::actionForEmptyHolder(BitHolder &holder)
