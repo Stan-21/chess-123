@@ -11,6 +11,7 @@ Chess::Chess()
     _grid = new Grid(8, 8);
     for (int i = 0; i < 64; i++) {
         _knightBitboards[i] = generateKnightMoveBitBoard(i); // Figure out all possible ways a knight can move
+        _kingBitboards[i] = generateKingMoveBitBoard(i);
     }
 
     for (int i = 0; i < 128; i++) {_bitboardLookup[i] = 0; }
@@ -237,6 +238,7 @@ void Chess::setStateString(const std::string &s)
     });
 }
 
+// Maybe can move Knight and King into one function
 BitboardElement Chess::generateKnightMoveBitBoard(int square) {
     std::pair<int, int> possiblePositions[] = {
         {2, 1}, {-2, 1}, {2, -1}, {-2, -1},
@@ -247,7 +249,6 @@ BitboardElement Chess::generateKnightMoveBitBoard(int square) {
     int rank = square / 8;
 
     uint64_t data = 0;
-    // int s = s + pair[0] + pair[1] * 8
     for (int i = 0; i < 8; i++) {
         int newFile = file + possiblePositions[i].first;
         int newRank = rank + possiblePositions[i].second;
@@ -257,6 +258,29 @@ BitboardElement Chess::generateKnightMoveBitBoard(int square) {
         }
     }
 
+    return BitboardElement(data);
+}
+
+BitboardElement Chess::generateKingMoveBitBoard(int square) {
+    std::pair<int, int> possiblePositions[] = {
+        {1, 0}, {-1, 0},
+        {0, 1}, {0, -1},
+        {1, -1}, {-1, 1},
+        {1, 1}, {-1, -1}
+    };
+
+    int file = square % 8;
+    int rank = square / 8;
+
+    uint64_t data = 0;
+    for (int i = 0; i < 8; i++) {
+        int newFile = file + possiblePositions[i].first;
+        int newRank = rank + possiblePositions[i].second;
+        if (newFile >= 0 && newFile < 8 && newRank >= 0 && newRank < 8) {
+            int pos = newFile + (newRank * 8);
+            data |= 1ULL << pos;
+        }
+    }
     return BitboardElement(data);
 }
 
@@ -272,6 +296,15 @@ void Chess::generateKnightMoves(std::vector<BitMove>& moves, BitboardElement kni
     knightBoard.forEachBit([&](int from) {
         // index is the position of a knight
         BitboardElement canMoveTo(_knightBitboards[from].getData() & occupancy);
+        canMoveTo.forEachBit([from, &moves](int to) {
+            moves.emplace_back(from, to, Knight);
+        });
+    });
+}
+
+void Chess::generateKingMoves(std::vector<BitMove>& moves, BitboardElement kingBoard, uint64_t occupancy) {
+    kingBoard.forEachBit([&](int from) {
+        BitboardElement canMoveTo(_kingBitboards[from].getData() & occupancy);
         canMoveTo.forEachBit([from, &moves](int to) {
             moves.emplace_back(from, to, Knight);
         });
@@ -300,10 +333,12 @@ std::vector<BitMove> Chess::generateAllMoves() {
     }
 
     int bitIndex = _currentPlayer == WHITE ? WHITE_PAWNS : BLACK_PAWNS;
-    int oppBitIndex = _currentPlayer == WHITE ? BLACK_PAWNS : WHITE_PAWNS;
+    int oppBitIndex = _currentPlayer == WHITE ? BLACK_PAWNS : WHITE_PAWNS; // not being used rn
+    int occupancyIndex = _currentPlayer == WHITE ? WHITE_ALL_PIECES : BLACK_ALL_PIECES;
 
     generateKnightMoves(moves, _bitboards[WHITE_KNIGHTS + bitIndex], 
-        ~_bitboards[_currentPlayer == WHITE ? WHITE_ALL_PIECES : BLACK_ALL_PIECES].getData());
-    
+        ~_bitboards[occupancyIndex].getData());
+    generateKingMoves(moves, _bitboards[WHITE_KING + bitIndex],
+        ~_bitboards[occupancyIndex].getData());
     return moves;
 }

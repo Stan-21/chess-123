@@ -65,11 +65,14 @@ private:
 
     std::vector<BitMove> generateAllMoves();
     BitboardElement generateKnightMoveBitBoard(int square); // Given a certain square, what are the 'L' positions that the knight can move to
+    BitboardElement generateKingMoveBitBoard(int square);
     void generateKnightMoves(std::vector<BitMove>& moves, BitboardElement knightBoard, uint64_t occupancy);
+    void generateKingMoves(std::vector<BitMove>& moves, BitboardElement kingBoard, uint64_t occupancy);
 
     int _currentPlayer;
     Grid* _grid;
     BitboardElement _knightBitboards[64];
+    BitboardElement _kingBitboards[64];
     std::vector<BitMove>        _moves;
     BitboardElement _bitboards[e_numBitBoards]; // Array of bitboards
     int _bitboardLookup[128]; // Not sure on what this does YET
