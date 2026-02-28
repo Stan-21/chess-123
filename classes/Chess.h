@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Bit.h"
 #include "BitHolder.h"
 #include "Game.h"
 #include "Grid.h"
@@ -68,6 +69,7 @@ private:
     BitboardElement generateKingMoveBitBoard(int square);
     void generateKnightMoves(std::vector<BitMove>& moves, BitboardElement knightBoard, uint64_t occupancy);
     void generateKingMoves(std::vector<BitMove>& moves, BitboardElement kingBoard, uint64_t occupancy);
+    void generatePawnMoves(std::vector<BitMove>& moves, BitboardElement pawnBoard, uint64_t occupancy, uint64_t opp_occupancy);
 
     int _currentPlayer;
     Grid* _grid;

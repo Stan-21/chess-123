@@ -1,4 +1,5 @@
 #include "Chess.h"
+#include "Bit.h"
 #include "Bitboard.h"
 #include "ChessSquare.h"
 #include <cctype>
@@ -15,13 +16,13 @@ Chess::Chess()
     }
 
     for (int i = 0; i < 128; i++) {_bitboardLookup[i] = 0; }
-    _bitboardLookup['W'] = WHITE_PAWNS;
+    _bitboardLookup['P'] = WHITE_PAWNS;
     _bitboardLookup['N'] = WHITE_KNIGHTS;
     _bitboardLookup['B'] = WHITE_BISHOPS;
     _bitboardLookup['R'] = WHITE_ROOKS;
     _bitboardLookup['Q'] = WHITE_QUEENS;
     _bitboardLookup['K'] = WHITE_KING;
-    _bitboardLookup['w'] = BLACK_PAWNS;
+    _bitboardLookup['p'] = BLACK_PAWNS;
     _bitboardLookup['n'] = BLACK_KNIGHTS;
     _bitboardLookup['b'] = BLACK_BISHOPS;
     _bitboardLookup['r'] = BLACK_ROOKS;
@@ -311,6 +312,51 @@ void Chess::generateKingMoves(std::vector<BitMove>& moves, BitboardElement kingB
     });
 }
 
+void Chess::generatePawnMoves(std::vector<BitMove>& moves, BitboardElement pawnBoard, uint64_t occupancy, uint64_t opp_occupancy) {
+    // Pawns can move 'forward' one space (white = 1, black = -1)
+    // Pawns can move 'forward' two spaces IF: white and rank 1 OR black and rank 6
+    int direction = _currentPlayer == WHITE ? 8 : -8;
+    int doubleRank = _currentPlayer == WHITE ? 1 : 6;
+
+    pawnBoard.forEachBit([&](int from) {
+        int rank = from / 8;
+        int to = from + direction;
+        if (to >= 0 && to < 64) {
+            if (occupancy & (1ULL << to)) {
+                moves.emplace_back(from, to, Pawn);
+                if (rank == doubleRank) {
+                    int two = from + (direction * 2);
+                    if (occupancy & (1ULL << two)) {
+                        moves.emplace_back(from, two, Pawn);
+                    }
+                }
+            }
+        }
+    });
+
+    pawnBoard.forEachBit([&](int from) {
+        int file = from % 8;
+        if (file != 0) {
+            int to = from + direction - 1;
+
+            if (to >= 0 && to < 64) {
+                if (opp_occupancy & (1ULL << to)) {
+                    moves.emplace_back(from, to, Pawn);
+                }
+            }
+        }
+        if (file != 7) {
+            int to = from + direction + 1;
+
+            if (to >= 0 && to < 64) {
+                if (opp_occupancy & (1ULL << to)) {
+                    moves.emplace_back(from, to, Pawn);
+                }
+            }
+        }
+    });
+}
+
 
 std::vector<BitMove> Chess::generateAllMoves() {
     std::vector<BitMove> moves;
@@ -334,11 +380,14 @@ std::vector<BitMove> Chess::generateAllMoves() {
 
     int bitIndex = _currentPlayer == WHITE ? WHITE_PAWNS : BLACK_PAWNS;
     int oppBitIndex = _currentPlayer == WHITE ? BLACK_PAWNS : WHITE_PAWNS; // not being used rn
-    int occupancyIndex = _currentPlayer == WHITE ? WHITE_ALL_PIECES : BLACK_ALL_PIECES;
+    int selfOccupancyIndex = _currentPlayer == WHITE ? WHITE_ALL_PIECES : BLACK_ALL_PIECES;
+    int oppOccupancyIndex = _currentPlayer == WHITE ? BLACK_ALL_PIECES : WHITE_ALL_PIECES;
 
     generateKnightMoves(moves, _bitboards[WHITE_KNIGHTS + bitIndex], 
-        ~_bitboards[occupancyIndex].getData());
+        ~_bitboards[selfOccupancyIndex].getData());
     generateKingMoves(moves, _bitboards[WHITE_KING + bitIndex],
-        ~_bitboards[occupancyIndex].getData());
+        ~_bitboards[selfOccupancyIndex].getData());
+    generatePawnMoves(moves, _bitboards[WHITE_PAWNS + bitIndex],
+    ~_bitboards[OCCUPANCY].getData(), _bitboards[oppOccupancyIndex].getData());
     return moves;
 }
