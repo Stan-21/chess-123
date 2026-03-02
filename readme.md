@@ -12,3 +12,10 @@ Pawn Movement
 - To do the pawn movement, I first split it up into three steps.  Moving one step forward, moving two steps forward if it is on the starting square, and capturing diagonal enemy pieces.
 - To do the forward movement, I first checked the color of the pieces and set the direction variable accordingly.  Then to give the option to move twice, I made it so pawns of a certain color have the option to move twice on a given row.  While it is supposed to be the first movement that allows double movement, NOT a certain row, pawns cannot move backwards so this implementation works.
 - Finally, to do the diagonal capturing, I checked the forward diagonal spaces for each pawn.  If there is an enemy piece, then the pawn could move there.
+
+# Chess Movement 2
+Bishop / Rook / Queen Movement
+- To implement the moves for these pieces I follow a similar pattern to the Knight and King.  I looped through every piece of that type and checked what moves were valid.  I used the MagicBitboards.h file that was provided by the professor to generate the possible moves for Bishops, Rooks, and Queens and used those moves to determine which ones were valid.  The other change that I added to the movement for these pieces was a self_occupancy variable to prevent them from capturing pieces of the same color.
+- To use the MagicBitBoard I called initMagicBitboards() when the game is created and also called cleanupMagicBitBoards() to free up the memory when stopping the game.
+
+- NOTE: There is a second screenshot of the first 20 moves just like the assignment asked for, but bishop / rook / queen moves don't show up cause they cannot move on turn one.

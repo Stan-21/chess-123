@@ -2,6 +2,7 @@
 #include "Bit.h"
 #include "Bitboard.h"
 #include "ChessSquare.h"
+#include "MagicBitboards.h"
 #include <cctype>
 #include <cstdint>
 #include <limits>
@@ -14,6 +15,7 @@ Chess::Chess()
         _knightBitboards[i] = generateKnightMoveBitBoard(i); // Figure out all possible ways a knight can move
         _kingBitboards[i] = generateKingMoveBitBoard(i);
     }
+    initMagicBitboards(); // Generates the bishop, rook, and queen moves
 
     for (int i = 0; i < 128; i++) {_bitboardLookup[i] = 0; }
     _bitboardLookup['P'] = WHITE_PAWNS;
@@ -34,6 +36,7 @@ Chess::Chess()
 
 Chess::~Chess()
 {
+    cleanupMagicBitboards();
     delete _grid;
 }
 
@@ -73,6 +76,7 @@ void Chess::setUpBoard()
     _grid->initializeChessSquares(pieceSize, "boardsquare.png");
     //FENtoBoard("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
     FENtoBoard("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+    //FENtoBoard("rnbqkbnr/pppppppp/8/8/8/8/8/RNBQKBNR w KQkq - 0 1"); // For testing rooks / bishops / queens
 
     _currentPlayer = WHITE;
     _moves = generateAllMoves();
@@ -357,6 +361,33 @@ void Chess::generatePawnMoves(std::vector<BitMove>& moves, BitboardElement pawnB
     });
 }
 
+void Chess::generateBishopMoves(std::vector<BitMove>& moves, BitboardElement bishopBoard, uint64_t occupancy, uint64_t self_occupancy) {
+    bishopBoard.forEachBit([&](int from) {
+        BitboardElement canMoveTo(getBishopAttacks(from, occupancy) & ~self_occupancy);
+        canMoveTo.forEachBit([from, &moves](int to) {
+            moves.emplace_back(from, to, Bishop);
+        });
+    });
+}
+
+void Chess::generateRookMoves(std::vector<BitMove>& moves, BitboardElement rookBoard, uint64_t occupancy, uint64_t self_occupancy) {
+    rookBoard.forEachBit([&](int from) {
+        BitboardElement canMoveTo(getRookAttacks(from, occupancy) & ~self_occupancy);
+        canMoveTo.forEachBit([from, &moves](int to) {
+            moves.emplace_back(from, to, Rook);
+        });
+    });
+}
+
+void Chess::generateQueenMoves(std::vector<BitMove>& moves, BitboardElement queenBoard, uint64_t occupancy, uint64_t self_occupancy) {
+    queenBoard.forEachBit([&](int from) {
+        BitboardElement canMoveTo(getQueenAttacks(from, occupancy) & ~self_occupancy);
+        canMoveTo.forEachBit([from, &moves](int to) {
+            moves.emplace_back(from, to, Queen);
+        });
+    });
+}
+
 
 std::vector<BitMove> Chess::generateAllMoves() {
     std::vector<BitMove> moves;
@@ -389,5 +420,12 @@ std::vector<BitMove> Chess::generateAllMoves() {
         ~_bitboards[selfOccupancyIndex].getData());
     generatePawnMoves(moves, _bitboards[WHITE_PAWNS + bitIndex],
     ~_bitboards[OCCUPANCY].getData(), _bitboards[oppOccupancyIndex].getData());
+    
+    generateBishopMoves(moves, _bitboards[WHITE_BISHOPS + bitIndex],
+    _bitboards[OCCUPANCY].getData(), _bitboards[selfOccupancyIndex].getData());
+    generateRookMoves(moves, _bitboards[WHITE_ROOKS + bitIndex],
+    _bitboards[OCCUPANCY].getData(), _bitboards[selfOccupancyIndex].getData());
+    generateQueenMoves(moves, _bitboards[WHITE_QUEENS + bitIndex],
+    _bitboards[OCCUPANCY].getData(), _bitboards[selfOccupancyIndex].getData());
     return moves;
 }

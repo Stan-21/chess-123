@@ -5,6 +5,7 @@
 #include "Game.h"
 #include "Grid.h"
 #include "Bitboard.h"
+#include "MagicBitboards.h"
 #include <cstdint>
 
 constexpr int pieceSize = 80;
@@ -70,6 +71,10 @@ private:
     void generateKnightMoves(std::vector<BitMove>& moves, BitboardElement knightBoard, uint64_t occupancy);
     void generateKingMoves(std::vector<BitMove>& moves, BitboardElement kingBoard, uint64_t occupancy);
     void generatePawnMoves(std::vector<BitMove>& moves, BitboardElement pawnBoard, uint64_t occupancy, uint64_t opp_occupancy);
+
+    void generateBishopMoves(std::vector<BitMove>& moves, BitboardElement bishopBoard, uint64_t occupancy, uint64_t opp_occupancy);
+    void generateRookMoves(std::vector<BitMove>& moves, BitboardElement rookBoard, uint64_t occupancy, uint64_t opp_occupancy);
+    void generateQueenMoves(std::vector<BitMove>& moves, BitboardElement queenBoard, uint64_t occupancy, uint64_t opp_occupancy);
 
     int _currentPlayer;
     Grid* _grid;
