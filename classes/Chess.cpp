@@ -5,6 +5,7 @@
 #include "ChessSquare.h"
 #include "Game.h"
 #include "MagicBitboards.h"
+#include "PieceSquare.h"
 #include <cctype>
 #include <cstddef>
 #include <cstdint>
@@ -501,6 +502,7 @@ int Chess::negaMax(char* state, int depth, int alpha, int beta, int playerColor)
 
 int Chess::Evaluate(const std::string& state) {
     static int coolValueArray[256];
+    static int pieceSquareTable[256];
     static bool initedCool = false;
     if (!initedCool) {
         initedCool = true;
@@ -520,9 +522,54 @@ int Chess::Evaluate(const std::string& state) {
     }
 
     int value = 0;
+    int count = 0;
 
     for (char ch : state) {
         value += coolValueArray[ch];
+        switch (ch) {
+            case 'P':
+                value += pawnTableW[count];
+                break;
+            case 'p':
+                value += pawnTableB[count];
+                break;
+            case 'N':
+                value += knightTableW[count];
+                break;
+            case 'n':
+                value += knightTableB[count];
+                break;
+            case 'B':
+                value += bishopTableW[count];
+                break;
+            case 'b':
+                value += bishopTableB[count];
+                break;
+            case 'R':
+                value += rookTableW[count];
+                break;
+            case 'r':
+                value += rookTableB[count];
+                break;
+
+            case 'Q':
+                value += queenTableW[count];
+                break;
+            case 'q':
+                value += queenTableB[count];
+                break;
+
+            case 'K':
+                value += kingTableW[count];
+                break;
+            case 'k':
+                value += kingTableB[count];
+                break;
+
+            default:
+                break;
+        }
+        count += 1;
     }
 
     return value;
