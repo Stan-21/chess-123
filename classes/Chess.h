@@ -8,6 +8,7 @@
 #include "MagicBitboards.h"
 #include <cassert>
 #include <cstdint>
+#include <vector>
 
 constexpr int pieceSize = 80;
 constexpr int WHITE = +1;
@@ -91,7 +92,7 @@ public:
     Grid* getGrid() override { return _grid; }
 
     bool gameHasAI() override { return true; }
-    void updateAI() override; // Maybe this is supposed to be in public?
+    void updateAI() override;
 private:
     Bit* PieceForPlayer(const int playerNumber, ChessPiece piece);
     Player* ownerAt(int x, int y) const;
@@ -99,6 +100,7 @@ private:
     char pieceNotation(int x, int y) const;
 
     std::vector<BitMove> generateAllMoves(std::string state, const int currentPlayer);
+    void removeIllegalMoves(std::vector<BitMove>& moves, std::string state, const int currentPlayer);
     BitboardElement generateKnightMoveBitBoard(int square); // Given a certain square, what are the 'L' positions that the knight can move to
     BitboardElement generateKingMoveBitBoard(int square);
     void generateKnightMoves(std::vector<BitMove>& moves, BitboardElement knightBoard, uint64_t occupancy);

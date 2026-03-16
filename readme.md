@@ -19,3 +19,8 @@ Bishop / Rook / Queen Movement
 - To use the MagicBitBoard I called initMagicBitboards() when the game is created and also called cleanupMagicBitBoards() to free up the memory when stopping the game.
 
 - NOTE: There is a second screenshot of the first 20 moves just like the assignment asked for, but bishop / rook / queen moves don't show up cause they cannot move on turn one.
+
+# Chess AI (Submission 1)
+- My chess AI uses the negamax algorithm with alpha beta pruning to determine what the 'optimal' move is for the AI.  As of now, the AI can only play as black and can run at a depth of four with a reasonable amount of delay between moves.  The main challenge for me came from filtering out the moves.  I tried to follow the lecture video on this, but with the audio gone it was a bit difficult to correctly follow so I had to do my own research.  
+- The evaluation function for my AI consists of two parts: assigning points to each piece and weights on optimal positions for each piece.  For each piece I just assigned a value based on what was given online and created a table with weights on each board position.
+- Leaving this at submission 1 cause I would like to go back (hopefully before the quarter ends) and optimize it.

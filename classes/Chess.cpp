@@ -7,11 +7,14 @@
 #include "MagicBitboards.h"
 #include "PieceSquare.h"
 #include <cctype>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <cstring>
 #include <limits>
 #include <cmath>
+#include <vector>
 
 Chess::Chess()
 {
@@ -85,6 +88,7 @@ void Chess::setUpBoard()
     _grid->initializeChessSquares(pieceSize, "boardsquare.png");
     //FENtoBoard("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR");
     FENtoBoard("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+    //FENtoBoard("6k1/5ppp/8/8/8/8/5PPP/5RK1 w - - 0 1");
     //FENtoBoard("rnbqkbnr/pppppppp/8/8/8/8/8/RNBQKBNR w KQkq - 0 1"); // For testing rooks / bishops / queens
 
     _currentPlayer = WHITE;
@@ -216,6 +220,10 @@ Player* Chess::ownerAt(int x, int y) const
 
 Player* Chess::checkForWinner()
 {
+    if (_moves.size() == 0) {
+        std::cout << "There is a winner" << std::endl;
+        return getPlayerAt(getCurrentPlayer()->playerNumber() == 0 ? 1 : 0);
+    }
     return nullptr;
 }
 
@@ -320,7 +328,7 @@ void Chess::generateKingMoves(std::vector<BitMove>& moves, BitboardElement kingB
     kingBoard.forEachBit([&](int from) {
         BitboardElement canMoveTo(_kingBitboards[from].getData() & occupancy);
         canMoveTo.forEachBit([from, &moves](int to) {
-            moves.emplace_back(from, to, Knight);
+            moves.emplace_back(from, to, King);
         });
     });
 }
@@ -434,15 +442,108 @@ std::vector<BitMove> Chess::generateAllMoves(std::string state, const int curren
     _bitboards[OCCUPANCY].getData(), _bitboards[selfOccupancyIndex].getData());
     generateQueenMoves(moves, _bitboards[WHITE_QUEENS + bitIndex],
     _bitboards[OCCUPANCY].getData(), _bitboards[selfOccupancyIndex].getData());
+    removeIllegalMoves(moves, state, currentPlayer);
     return moves;
 }
 
+void Chess::removeIllegalMoves(std::vector<BitMove>& moves, std::string state, const int currentPlayer) {
+    constexpr uint64_t NotAFile = 0xFEFEFEFEFEFEFEFEULL;
+    constexpr uint64_t NotHFile = 0x7F7F7F7F7F7F7F7FULL;
+
+    auto isKingInCheck = [&]() -> bool {
+        uint64_t bitboards[e_numBitBoards] = {0};
+        int kingSquare = -1;
+
+        for (int sq = 0; sq < 64; sq++) {
+            int bitIndex = _bitboardLookup[state[sq]];
+            bitboards[bitIndex] |= (1ULL << sq);
+        }
+
+        bitboards[WHITE_ALL_PIECES] = bitboards[WHITE_PAWNS]
+        | bitboards[WHITE_KNIGHTS]
+        | bitboards[WHITE_BISHOPS]
+        | bitboards[WHITE_ROOKS]
+        | bitboards[WHITE_QUEENS]
+        | bitboards[WHITE_KING];
+
+        bitboards[BLACK_ALL_PIECES] = bitboards[BLACK_PAWNS]
+        | bitboards[BLACK_KNIGHTS]
+        | bitboards[BLACK_BISHOPS]
+        | bitboards[BLACK_ROOKS]
+        | bitboards[BLACK_QUEENS]
+        | bitboards[BLACK_KING];
+
+
+        uint64_t occupancy = bitboards[WHITE_ALL_PIECES] | bitboards[BLACK_ALL_PIECES];
+
+        unsigned long index;
+        uint64_t bb = bitboards[currentPlayer == WHITE ? WHITE_KING : BLACK_KING];
+        #if defined(_MSC_VER) && !defined(__clang__)
+                _BitScanForward64(&index, bb);
+        #else
+                index = __builtin_ffsll(bb) - 1; // Returns index of first bit with a value (ie 1) (right to left) and then subtracts 1
+        #endif
+        kingSquare = bitboards[currentPlayer == WHITE ? WHITE_KING : BLACK_KING] ? index : -1;
+
+        if (kingSquare == -1) return true;
+
+        int enemyBitIndexBase = (currentPlayer == WHITE) ? BLACK_PAWNS : WHITE_PAWNS;
+
+        uint64_t kingBit = (1ULL << kingSquare);
+        uint64_t enemyPawns = bitboards[enemyBitIndexBase + WHITE_PAWNS];
+        uint64_t enemyKnights = bitboards[enemyBitIndexBase + WHITE_KNIGHTS];
+        uint64_t enemyBishQueens = bitboards[enemyBitIndexBase + WHITE_BISHOPS] | bitboards[enemyBitIndexBase + WHITE_QUEENS];
+        uint64_t enemyRookQueens = bitboards[enemyBitIndexBase + WHITE_ROOKS] | bitboards[enemyBitIndexBase + WHITE_QUEENS];
+        uint64_t enemyKing = bitboards[enemyBitIndexBase + WHITE_KING];
+
+        if (getRookAttacks(kingSquare, occupancy) & enemyRookQueens) return true;
+        if (getBishopAttacks(kingSquare, occupancy) & enemyBishQueens) return true;
+        if (KnightAttacks[kingSquare] & enemyKnights) return true;
+        if (KingAttacks[kingSquare] & enemyKing) return true;
+        uint64_t pawnAttacks;
+        if (currentPlayer == WHITE) {
+            pawnAttacks = ((kingBit & NotAFile) << 7) | ((kingBit & NotHFile) << 9);
+        } else {
+            pawnAttacks = ((kingBit & NotHFile) >> 7) | ((kingBit & NotAFile) >> 9);
+        }
+        if (pawnAttacks & enemyPawns) return true;
+
+        return false;
+    };
+
+    auto it = moves.begin();
+    while (it != moves.end()) {
+        int srcSquare = it->from;
+        int dstSquare = it->to;
+        char saveMove = state[dstSquare];
+        state[dstSquare] = state[srcSquare];
+        state[srcSquare] = '0';
+        bool illegal = isKingInCheck();
+        state[srcSquare] = state[dstSquare];
+        state[dstSquare] = saveMove;
+
+        if (illegal) {
+            it = moves.erase(it);
+        } else {
+            ++it;
+        }
+    }
+}
+
 void Chess::updateAI() {
+    if (checkForWinner()) {
+        endTurn();
+        return;
+    }
+    std::cout << "updating AI" << std::endl;
+
     char baseState[65];
     const int myInfinity = 999999999;
     int bestMoveScore = -myInfinity; // Min value
     BitMove bestMove;
     std::string copyState = stateString();
+
+    const auto start = std::chrono::high_resolution_clock::now();
 
     for (auto move : _moves) {
         strcpy(&baseState[0], copyState.c_str());
@@ -451,16 +552,29 @@ void Chess::updateAI() {
         baseState[dstSquare] = baseState[srcSquare];
         baseState[srcSquare] = '0';
         _countState = 0;
-        int bestValue = negaMax(baseState, 3, -myInfinity, myInfinity, _currentPlayer);
+        int bestValue = negaMax(baseState, 4, -myInfinity, myInfinity, _currentPlayer);
         if (bestValue > bestMoveScore) {
             bestMoveScore = bestValue;
             bestMove = move;
         }
     }
 
-    //std::cout << _countState << std::endl;
+    if (_moves.size() == 1) {
+        bestMove = _moves[0];
+        bestMoveScore += 1;
+    }
+
+    std::cout << "searched " << _countState << " nodes" << std::endl;
 
     if (bestMoveScore != -myInfinity) {
+        auto end = std::chrono::high_resolution_clock::now();
+        auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+
+        double nps = duration.count() > 0 ? (_countState * 1000.0 / duration.count()) : _countState;
+
+        std::cout << "(" << duration.count() <<"ms, ";
+        std::cout << (uint64_t)nps << " nps)\n";
+
         int srcSquare = bestMove.from;
         int dstSquare = bestMove.to;
         BitHolder& src = getHolderAt(srcSquare & 7, srcSquare / 8);
@@ -480,6 +594,10 @@ int Chess::negaMax(char* state, int depth, int alpha, int beta, int playerColor)
 
     int bestMoveScore = -999999999; // Min value
     auto negaMoves = generateAllMoves(state, playerColor);
+
+    if (negaMoves.empty()) {
+        return -100000 + depth * playerColor;
+    }
 
     for (auto move : negaMoves) {
         int srcSquare = move.from;
