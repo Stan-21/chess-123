@@ -552,7 +552,7 @@ void Chess::updateAI() {
         baseState[dstSquare] = baseState[srcSquare];
         baseState[srcSquare] = '0';
         _countState = 0;
-        int bestValue = negaMax(baseState, 4, -myInfinity, myInfinity, _currentPlayer);
+        int bestValue = -negaMax(baseState, 4, -myInfinity, myInfinity, -_currentPlayer);
         if (bestValue > bestMoveScore) {
             bestMoveScore = bestValue;
             bestMove = move;
